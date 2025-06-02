@@ -166,19 +166,7 @@ class Handle
 {
 public:
     Handle(bux::Client& client, std::string_view server_name = "dflat",
-           std::chrono::seconds timeout = 5s)
-    : server_name(server_name), timeout(timeout), client(client)
-    {
-        client.AddHandler(DFLAT_RESPONSE, [this] (auto&, const bux::Message& msg) {
-            if (!bux::ValidateJSON(msg.content, validate::RESPONSE))
-                return;
-
-            unsigned id = msg.content["request-id"];
-            std::lock_guard<std::mutex> guard(queries_mutex);
-            if (pending_queries.contains(id))
-                pending_queries[id].promise.set_value(msg);
-        });
-    }
+           std::chrono::seconds timeout = 5s);
 
     template<typename T> requires Serialisable<T>
     auto Get(std::string_view database_name, std::string_view key)
