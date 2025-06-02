@@ -226,7 +226,7 @@ public:
     -> tb::error<DatabaseError>
     {
         auto content_result = CommandImpl(database_name, CMD_PUT, {
-            { "entries", json::object({ key, value }) },
+            { "entries", json::object({ { key, value } }) },
             { "replace", replace }
         }, validate::PUT_RESPONSE);
 
