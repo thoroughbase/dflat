@@ -115,7 +115,7 @@ inline const bux::ValidationSeries RESPONSE = {
 };
 
 inline const bux::ValidationSeries GET_QUERY = {
-    { "/cmd"_json_pointer, bux::predicates::Compare("get") },
+    { "/cmd"_json_pointer, bux::predicates::Compare(CMD_GET) },
     { "/keys"_json_pointer, IsStringArray }
 };
 
@@ -124,7 +124,7 @@ inline const bux::ValidationSeries GET_RESPONSE = {
 };
 
 inline const bux::ValidationSeries PUT_QUERY = {
-    { "/cmd"_json_pointer, bux::predicates::Compare("put") },
+    { "/cmd"_json_pointer, bux::predicates::Compare(CMD_PUT) },
     { "/entries"_json_pointer, IsDict },
     { "/replace"_json_pointer, bux::predicates::IsBool }
 };
@@ -132,7 +132,7 @@ inline const bux::ValidationSeries PUT_QUERY = {
 inline const bux::ValidationSeries PUT_RESPONSE = {};
 
 inline const bux::ValidationSeries CREATE_QUERY = {
-    { "/cmd"_json_pointer, bux::predicates::Compare("create") },
+    { "/cmd"_json_pointer, bux::predicates::Compare(CMD_CREATE) },
     { "/persist"_json_pointer, bux::predicates::IsBool },
     { "/max-cache-items"_json_pointer, bux::predicates::IsNumber }
 };
@@ -140,7 +140,7 @@ inline const bux::ValidationSeries CREATE_QUERY = {
 inline const bux::ValidationSeries CREATE_RESPONSE = {};
 
 inline const bux::ValidationSeries DB_LIST_QUERY = {
-    { "/cmd"_json_pointer, bux::predicates::Compare("db-list") }
+    { "/cmd"_json_pointer, bux::predicates::Compare(CMD_DB_LIST) }
 };
 
 inline const bux::ValidationSeries DB_LIST_RESPONSE = {
@@ -148,7 +148,7 @@ inline const bux::ValidationSeries DB_LIST_RESPONSE = {
 };
 
 inline const bux::ValidationSeries DB_DELETE_QUERY = {
-    { "/cmd"_json_pointer, bux::predicates::Compare("db-delete") },
+    { "/cmd"_json_pointer, bux::predicates::Compare(CMD_DB_DELETE) },
 };
 
 inline const bux::ValidationSeries DB_DELETE_RESPONSE = {};
