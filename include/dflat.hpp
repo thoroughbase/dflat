@@ -43,8 +43,10 @@ using element_type_t = element_type<T, I>::type;
 
 template<typename T, typename K, typename V>
 concept PairIteratorRange = std::ranges::input_range<T>
-&& std::same_as<detail::element_type_t<std::ranges::range_reference_t<T>, 0>, K>
-&& std::same_as<detail::element_type_t<std::ranges::range_reference_t<T>, 1>, V>;
+&& std::same_as<detail::element_type_t<std::ranges::range_reference_t<T>, 0>,
+    std::remove_cvref_t<K>>
+&& std::same_as<detail::element_type_t<std::ranges::range_reference_t<T>, 1>,
+    std::remove_cvref_t<V>>;
 
 namespace detail
 {
