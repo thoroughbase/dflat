@@ -295,11 +295,14 @@ private:
                      const json& args, const bux::ValidationSeries& validation)
     -> tb::result<json, DatabaseError>
     {
-        unsigned id = request_id;
+        unsigned id;
+        std::future<bux::Message> response;
 
         {
             std::lock_guard<std::mutex> guard(queries_mutex);
+            id = request_id;
             pending_queries.emplace(request_id++, PendingResponse {});
+            response = pending_queries[id].promise.get_future();
         }
 
         json msg_content = {
@@ -318,12 +321,14 @@ private:
             .only_first = true
         });
 
-        tb::scoped_guard erase_query = [&] { pending_queries.erase(id); };
+        tb::scoped_guard erase_query = [&] {
+            std::lock_guard<std::mutex> guard(queries_mutex);
+            pending_queries.erase(id);
+        };
 
         if (error.is_error())
             return DatabaseError::NETWORK_ERROR;
 
-        std::future<bux::Message> response = pending_queries[id].promise.get_future();
         if (response.wait_for(timeout) == std::future_status::timeout)
             return DatabaseError::TIMEOUT;
 
