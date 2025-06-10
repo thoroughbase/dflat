@@ -113,7 +113,7 @@ Database::Database(bux::Client& cl, std::string_view directory)
         if (!bux::ValidateJSON(msg.content, validate::COMMAND))
             return;
 
-        std::string db_name = msg.content["database"];
+        auto db_name = msg.content["database"].get<std::string_view>();
 
         const auto make_msg_with = [&] (DatabaseError e, auto... args) {
             return bux::Message {
@@ -188,7 +188,7 @@ Database::Database(bux::Client& cl, std::string_view directory)
                 auto start = eviction_queue.begin();
                 auto end = start + eviction_queue.size() - max_cache_items;
                 std::for_each(start, end, [&] (const json& j) {
-                    entries.erase(j.get<std::string>());
+                    entries.erase(j.get<std::string_view>());
                 });
                 eviction_queue.erase(start, end - 1);
             }
@@ -209,10 +209,10 @@ Database::Database(bux::Client& cl, std::string_view directory)
 
             client.Write(make_msg_with(DatabaseError::SUCCESS)).ignore_error();
         } else if (bux::ValidateJSON(msg.content, validate::DB_LIST_QUERY)) {
-            std::vector<std::string> names;
+            std::vector<std::string_view> names;
             names.reserve(databases.size());
             for (auto& [k, v] : databases.items())
-                names.push_back(k);
+                names.emplace_back(k);
 
             client.Write(
                 make_msg_with(DatabaseError::SUCCESS, json { "databases", names })
