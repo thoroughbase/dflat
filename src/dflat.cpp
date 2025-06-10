@@ -144,7 +144,8 @@ Database::Database(bux::Client& cl, std::string_view directory)
                 // TODO: Currently only looks in cache
                 if (entries.contains(key)) {
                     dict.emplace(key, entries[key]);
-                    auto iter = eviction_queue.find(key);
+                    auto iter = std::find(eviction_queue.begin(),
+                        eviction_queue.end(), key);
                     if (iter != eviction_queue.end())
                         eviction_queue.erase(iter);
                     eviction_queue.emplace_back(key);
@@ -172,7 +173,8 @@ Database::Database(bux::Client& cl, std::string_view directory)
                     entries.erase(key);
 
                 entries.emplace(key, value);
-                auto iter = eviction_queue.find(key);
+                auto iter = std::find(eviction_queue.begin(),
+                    eviction_queue.end(), key);
                 if (iter != eviction_queue.end())
                     eviction_queue.erase(iter);
                 eviction_queue.emplace_back(key);
