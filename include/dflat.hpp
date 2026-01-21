@@ -12,11 +12,12 @@
 #include <type_traits>
 #include <vector>
 
+#include <tb/tb.h>
+
 namespace dflat
 {
 
 namespace bux = buxtehude;
-namespace tb = bux::tb;
 using nlohmann::json, nlohmann::json_pointer;
 
 template<typename T>
