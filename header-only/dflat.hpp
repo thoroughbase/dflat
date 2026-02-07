@@ -52,7 +52,7 @@ concept PairIteratorRange = std::ranges::input_range<T>
 namespace detail
 {
 
-template<typename T> requires Serialisable<T>
+template<Serialisable T>
 json from_pairs(PairIteratorRange<std::string, T> auto const& pairs)
 {
     json j = json::object();
@@ -62,7 +62,7 @@ json from_pairs(PairIteratorRange<std::string, T> auto const& pairs)
     return j;
 }
 
-template<typename T> requires Serialisable<T>
+template<Serialisable T>
 json from_span(std::span<const T> items)
 {
     json j = json::array();
@@ -183,7 +183,7 @@ public:
         });
     }
 
-    template<typename T> requires Serialisable<T>
+    template<Serialisable T>
     auto Get(std::string_view database_name, std::string_view key)
     -> tb::result<T, DatabaseError>
     {
@@ -205,7 +205,7 @@ public:
         }
     }
 
-    template<typename T> requires Serialisable<T>
+    template<Serialisable T>
     auto GetMany(std::string_view database_name, std::span<std::string_view> keys)
     -> tb::result<std::unordered_map<std::string, T>, DatabaseError>
     {
@@ -223,8 +223,8 @@ public:
         }
     }
 
-    template<typename T> requires Serialisable<T>
-    auto Put(std::string_view database_name, std::string_view key, const T& value,
+    auto Put(std::string_view database_name, std::string_view key,
+             Serialisable auto const& value,
              bool replace = false)
     -> tb::error<DatabaseError>
     {
@@ -238,7 +238,7 @@ public:
         return tb::ok;
     }
 
-    template<typename T> requires Serialisable<T>
+    template<Serialisable T>
     auto PutMany(std::string_view database_name,
                  PairIteratorRange<std::string, T> auto const& entries,
                  bool replace = true)
