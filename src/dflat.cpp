@@ -11,7 +11,7 @@ Handle::Handle(bux::Client& client, std::string_view server_name,
             return;
 
         unsigned id = msg.content["request-id"];
-        std::lock_guard<std::mutex> guard(queries_mutex);
+        std::scoped_lock queries_lock { queries_mutex };
         if (pending_queries.contains(id))
             pending_queries[id].promise.set_value(msg);
     });
@@ -25,7 +25,7 @@ auto Handle::CommandImpl(std::string_view database_name, std::string_view comman
     std::future<bux::Message> response;
 
     {
-        std::lock_guard<std::mutex> guard(queries_mutex);
+        std::scoped_lock queries_lock { queries_mutex };
         id = request_id;
         pending_queries.emplace(request_id++, PendingResponse {});
         response = pending_queries[id].promise.get_future();
@@ -40,19 +40,22 @@ auto Handle::CommandImpl(std::string_view database_name, std::string_view comman
     if (args.is_object())
         msg_content.update(args);
 
-    auto error = client.Write({
-        .dest = server_name,
-        .type { DFLAT_QUERY },
-        .content = std::move(msg_content),
-        .only_first = true
-    });
+    auto write_message = [&] () -> tb::error<bux::WriteError> {
+        std::scoped_lock write_lock { write_mutex };
+        return client.Write({
+            .dest = server_name,
+            .type { DFLAT_QUERY },
+            .content = std::move(msg_content),
+            .only_first = true
+        });
+    };
 
     tb::scoped_guard erase_query = [&] {
-        std::lock_guard<std::mutex> guard(queries_mutex);
+        std::scoped_lock queries_lock { queries_mutex };
         pending_queries.erase(id);
     };
 
-    if (error.is_error())
+    if (write_message().is_error())
         return DatabaseError::NETWORK_ERROR;
 
     if (response.wait_for(timeout) == std::future_status::timeout)

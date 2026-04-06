@@ -257,6 +257,7 @@ private:
 
     bux::Client& client;
     std::mutex queries_mutex;
+    std::mutex write_mutex;
     std::unordered_map<unsigned, PendingResponse> pending_queries;
     unsigned request_id = 0;
 };
