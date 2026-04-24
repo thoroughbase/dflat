@@ -206,10 +206,7 @@ public:
     }
 
     template<Serialisable T, std::ranges::range KeyRange>
-        requires std::constructible_from<
-            std::string_view,
-            std::ranges::range_value_t<KeyRange>
-        >
+        requires tb::string_view_like<std::ranges::range_value_t<KeyRange>>
     auto GetMany(std::string_view database_name, KeyRange&& keys)
     -> tb::result<std::unordered_map<std::string, T>, DatabaseError>
     {
