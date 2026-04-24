@@ -63,7 +63,7 @@ json from_pairs(PairIteratorRange<std::string, T> auto const& pairs)
 }
 
 template<Serialisable T>
-json from_span(std::span<const T> items)
+json from_range(tb::typed_range<T> auto&& items)
 {
     json j = json::array();
     for (const auto& elem : items)
@@ -193,12 +193,17 @@ public:
         }
     }
 
-    template<Serialisable T>
-    auto GetMany(std::string_view database_name, std::span<std::string_view> keys)
+    template<Serialisable T, std::ranges::range KeyRange>
+        requires std::constructible_from<
+            std::string_view,
+            std::ranges::range_value_t<KeyRange>
+        >
+    auto GetMany(std::string_view database_name, KeyRange&& keys)
     -> tb::result<std::unordered_map<std::string, T>, DatabaseError>
     {
+        using KeyType = std::ranges::range_value_t<KeyRange>;
         auto content_result = CommandImpl(database_name, CMD_GET,
-            json::object({ { "keys", detail::from_span<std::string_view>(keys) } }),
+            json::object({ { "keys", detail::from_range<KeyType>(keys) } }),
             validate::GET_RESPONSE);
 
         if (content_result.is_error()) return content_result.get_error();
