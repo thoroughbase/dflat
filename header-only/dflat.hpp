@@ -28,51 +28,30 @@ concept Serialisable = requires (json& j) {
 
 static_assert(Serialisable<std::string_view>);
 
-namespace detail
+template<tb::pair_range Range>
+    requires tb::string_view_like<tb::pair_range_key_t<Range>>
+    && dflat::Serialisable<tb::pair_range_value_t<Range>>
+auto as_json_dict(Range&& range) -> json
 {
-
-template<typename T, size_t I>
-struct element_type
-{
-    using type = std::remove_cvref_t<decltype(std::get<I>(std::declval<T>()))>;
-};
-
-template<typename T, size_t I>
-using element_type_t = element_type<T, I>::type;
-
-}
-
-template<typename T, typename K, typename V>
-concept PairIteratorRange = std::ranges::input_range<T>
-&& std::same_as<detail::element_type_t<std::ranges::range_reference_t<T>, 0>,
-    std::remove_cvref_t<K>>
-&& std::same_as<detail::element_type_t<std::ranges::range_reference_t<T>, 1>,
-    std::remove_cvref_t<V>>;
-
-namespace detail
-{
-
-template<Serialisable T>
-json from_pairs(PairIteratorRange<std::string, T> auto const& pairs)
-{
-    json j = json::object();
-    for (const auto& [key, value] : pairs)
+    json j = dflat::json::object();
+    for (const auto& [key, value] : range)
         j.emplace(key, value);
-
     return j;
 }
 
-template<Serialisable T>
-json from_range(tb::typed_range<T> auto&& items)
+}
+
+template<std::ranges::range Range>
+    requires dflat::Serialisable<std::ranges::range_value_t<Range>>
+void to_json(dflat::json& j, Range&& list)
 {
-    json j = json::array();
-    for (const auto& elem : items)
+    j = dflat::json::array();
+    for (const auto& elem : list)
         j.emplace_back(elem);
-
-    return j;
 }
 
-}
+namespace dflat
+{
 
 constexpr std::string_view DFLAT_QUERY = "dflat-query";
 constexpr std::string_view DFLAT_RESPONSE = "dflat-response";
@@ -210,9 +189,8 @@ public:
     auto GetMany(std::string_view database_name, KeyRange&& keys)
     -> tb::result<std::unordered_map<std::string, T>, DatabaseError>
     {
-        using KeyType = std::ranges::range_value_t<KeyRange>;
         auto content_result = CommandImpl(database_name, CMD_GET,
-            json::object({ { "keys", detail::from_range<KeyType>(keys) } }),
+            json::object({ { "keys", keys } }),
             validate::GET_RESPONSE);
 
         if (content_result.is_error()) return content_result.get_error();
@@ -240,14 +218,14 @@ public:
         return tb::ok;
     }
 
-    template<Serialisable T>
-    auto PutMany(std::string_view database_name,
-                 PairIteratorRange<std::string, T> auto const& entries,
+    template<Serialisable T, tb::pair_range EntriesRange>
+        requires std::same_as<T, tb::pair_range_value_t<EntriesRange>>
+    auto PutMany(std::string_view database_name, EntriesRange&& entries,
                  bool replace = true)
     -> tb::error<DatabaseError>
     {
         auto content_result = CommandImpl(database_name, CMD_PUT, {
-            { "entries", detail::from_pairs<T>(entries) },
+            { "entries", as_json_dict(std::forward<EntriesRange>(entries)) },
             { "replace", replace }
         }, validate::PUT_RESPONSE);
 
