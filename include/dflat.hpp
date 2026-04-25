@@ -23,7 +23,6 @@ using nlohmann::json, nlohmann::json_pointer;
 template<typename T>
 concept Serialisable = requires (json& j) {
     { j.get<T>() };
-    { j.get<std::vector<T>>() };
 };
 
 static_assert(Serialisable<std::string_view>);
@@ -207,7 +206,10 @@ public:
     }
 
     template<Serialisable T, tb::pair_range EntriesRange>
-        requires std::same_as<T, tb::pair_range_value_t<EntriesRange>>
+        requires std::same_as<
+            T,
+            std::remove_cvref_t<tb::pair_range_value_t<EntriesRange>>
+        >
     auto PutMany(std::string_view database_name, EntriesRange&& entries,
                  bool replace = true)
     -> tb::error<DatabaseError>
