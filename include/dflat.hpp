@@ -6,6 +6,8 @@
 
 #include <chrono>
 #include <cstddef>
+#include <filesystem>
+#include <fstream>
 #include <future>
 #include <mutex>
 #include <string_view>
@@ -136,6 +138,17 @@ inline const bux::ValidationSeries DB_DELETE_RESPONSE = {};
 
 }
 
+struct FileError
+{
+    enum Type
+    {
+        CREATE_DIRECTORY, CREATE_FILE, PARSE_LIST_FILE
+    };
+
+    Type type;
+    std::error_code code;
+};
+
 struct PendingResponse
 {
     std::promise<bux::Message> promise;
@@ -244,15 +257,30 @@ private:
     unsigned request_id = 0;
 };
 
+namespace file = std::filesystem;
+
 class Database
 {
+    constexpr static std::string_view DATABASE_LIST_FILE = "databases.dflat";
 public:
-    Database(bux::Client& client, std::string_view directory);
+    static auto FromClient(bux::Client& cl, file::path directory = "dflat")
+    -> tb::result<Database, FileError>;
+
+    Database(const Database&) = delete;
+    auto operator=(const Database&) -> Database& = delete;
+
+    Database(Database&& other);
+    auto operator=(Database&&) -> Database& = delete;
+
+    ~Database();
 
 private:
-    std::string storage_directory;
-    json databases;
+    Database(bux::Client& cl, json&& database_data, file::path directory);
+
+    file::path storage_directory;
+    json databases = json::object();
     bux::Client& client;
+    bool moved_from = false;
 };
 
 }
