@@ -33,20 +33,12 @@ void Database::HandleMessage(const bux::Message& msg)
         }
 
         json dict = json::object();
-        json& eviction_queue = databases[db_name]["cache-eviction-queue"];
-        json& entries = databases[db_name]["entries"];
 
         for (const json& key_json : msg.content["keys"]) {
             auto key = key_json.get<std::string_view>();
             // TODO: Currently only looks in cache
-            if (entries.contains(key)) {
-                dict.emplace(key, entries[key]);
-                auto iter = std::find(eviction_queue.begin(),
-                    eviction_queue.end(), key);
-                if (iter != eviction_queue.end())
-                    eviction_queue.erase(iter);
-                eviction_queue.emplace_back(key);
-            }
+            if (json* value = CacheLookup(db_name, key); value != nullptr)
+                dict.emplace(key, *value);
         }
 
         client.Write(
@@ -66,15 +58,10 @@ void Database::HandleMessage(const bux::Message& msg)
 
         for (auto& [key, value] : msg.content["entries"].items()) {
             // TODO: Currently only looks in cache
-            if (entries.contains(key) && replace)
+            if (json* value = CacheLookup(db_name, key); value != nullptr && replace)
                 entries.erase(key);
 
             entries.emplace(key, value);
-            auto iter = std::find(eviction_queue.begin(),
-                eviction_queue.end(), key);
-            if (iter != eviction_queue.end())
-                eviction_queue.erase(iter);
-            eviction_queue.emplace_back(key);
         }
 
         client.Write(make_msg_with(DatabaseError::SUCCESS)).ignore_error();
@@ -183,6 +170,21 @@ Database::Database(bux::Client& cl, json&& database_data, file::path directory)
     client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
         HandleMessage(msg);
     });
+}
+
+auto Database::CacheLookup(std::string_view db_name, std::string_view key) -> json*
+{
+    json& eviction_queue = databases[db_name]["cache-eviction-queue"];
+    json& entries = databases[db_name]["entries"];
+
+    if (!entries.contains(key))
+        return nullptr;
+
+    auto iter = std::find(eviction_queue.begin(), eviction_queue.end(), key);
+    if (iter != eviction_queue.end())
+        eviction_queue.erase(iter);
+    eviction_queue.emplace_back(key);
+    return &(entries[key]);
 }
 
 }

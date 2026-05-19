@@ -48,6 +48,7 @@ private:
     Database(bux::Client& cl, json&& database_data, file::path directory);
 
     void HandleMessage(const bux::Message& msg);
+    auto CacheLookup(std::string_view db_name, std::string_view key) -> json*;
 
     file::path storage_directory;
     json databases = json::object();
