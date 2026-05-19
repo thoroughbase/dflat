@@ -5,7 +5,7 @@ namespace dflat
 
 namespace bux = buxtehude;
 
-void HandleMessage(bux::Client& client, const bux::Message& msg, json& databases)
+void Database::HandleMessage(const bux::Message& msg)
 {
     if (!bux::ValidateJSON(msg.content, validate::COMMAND))
         return;
@@ -159,7 +159,7 @@ Database::Database(Database&& other)
     other.moved_from = true;
     client.EraseHandler(std::string { DFLAT_QUERY });
     client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
-        HandleMessage(client, msg, databases);
+        HandleMessage(msg);
     });
 }
 
@@ -181,7 +181,7 @@ Database::Database(bux::Client& cl, json&& database_data, file::path directory)
 : storage_directory(directory), databases(std::move(database_data)), client(cl)
 {
     client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
-        HandleMessage(client, msg, databases);
+        HandleMessage(msg);
     });
 }
 

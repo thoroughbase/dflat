@@ -47,6 +47,8 @@ public:
 private:
     Database(bux::Client& cl, json&& database_data, file::path directory);
 
+    void HandleMessage(const bux::Message& msg);
+
     file::path storage_directory;
     json databases = json::object();
     bux::Client& client;

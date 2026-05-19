@@ -28,7 +28,83 @@ struct FileError
     std::error_code code;
 };
 
-void HandleMessage(bux::Client& client, const bux::Message& msg, json& databases)
+namespace file = std::filesystem;
+
+class Database
+{
+    constexpr static std::string_view DATABASE_LIST_FILE = "databases.dflat";
+public:
+    static auto FromClient(bux::Client& cl, file::path directory = "dflat")
+    -> tb::result<Database, FileError>
+    {
+        std::error_code err;
+        file::create_directory(directory, err);
+        if (err)
+            return FileError { FileError::CREATE_DIRECTORY, err };
+
+        std::fstream list_file {
+            directory/DATABASE_LIST_FILE,
+            std::ios::binary | std::ios::in
+        };
+
+        json file_contents;
+        if (list_file.is_open()) {
+            file_contents = json::parse(list_file, nullptr, false);
+            if (file_contents.is_discarded())
+                return FileError { FileError::PARSE_LIST_FILE };
+        }
+
+        return Database { cl, std::move(file_contents), directory };
+    }
+
+    Database(const Database&) = delete;
+    auto operator=(const Database&) -> Database& = delete;
+
+    Database(Database&& other)
+    : storage_directory(other.storage_directory), databases(std::move(other.databases)),
+      client(other.client)
+    {
+        other.moved_from = true;
+        client.EraseHandler(std::string { DFLAT_QUERY });
+        client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
+            HandleMessage(msg);
+        });
+    }
+
+    auto operator=(Database&&) -> Database& = delete;
+
+    ~Database()
+    {
+        if (moved_from)
+            return;
+
+        std::fstream list_file {
+            storage_directory/DATABASE_LIST_FILE,
+            std::ios::binary | std::ios::out
+        };
+
+        // TODO: Error handling for failed disk writes
+        list_file << databases;
+    }
+
+private:
+    Database(bux::Client& cl, json&& database_data, file::path directory)
+    : storage_directory(directory), databases(std::move(database_data)), client(cl)
+    {
+        client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
+            HandleMessage(msg);
+        });
+    }
+
+    void HandleMessage(const bux::Message& msg);
+
+    file::path storage_directory;
+    json databases = json::object();
+    bux::Client& client;
+    bool moved_from = false;
+};
+
+void Database::HandleMessage(const bux::Message& msg)
 {
     if (!bux::ValidateJSON(msg.content, validate::COMMAND))
         return;
@@ -149,79 +225,5 @@ void HandleMessage(bux::Client& client, const bux::Message& msg, json& databases
         client.Write(make_msg_with(DatabaseError::SUCCESS)).ignore_error();
     }
 }
-
-namespace file = std::filesystem;
-
-class Database
-{
-    constexpr static std::string_view DATABASE_LIST_FILE = "databases.dflat";
-public:
-    static auto FromClient(bux::Client& cl, file::path directory = "dflat")
-    -> tb::result<Database, FileError>
-    {
-        std::error_code err;
-        file::create_directory(directory, err);
-        if (err)
-            return FileError { FileError::CREATE_DIRECTORY, err };
-
-        std::fstream list_file {
-            directory/DATABASE_LIST_FILE,
-            std::ios::binary | std::ios::in
-        };
-
-        json file_contents;
-        if (list_file.is_open()) {
-            file_contents = json::parse(list_file, nullptr, false);
-            if (file_contents.is_discarded())
-                return FileError { FileError::PARSE_LIST_FILE };
-        }
-
-        return Database { cl, std::move(file_contents), directory };
-    }
-
-    Database(const Database&) = delete;
-    auto operator=(const Database&) -> Database& = delete;
-
-    Database(Database&& other)
-    : storage_directory(other.storage_directory), databases(std::move(other.databases)),
-      client(other.client)
-    {
-        other.moved_from = true;
-        client.EraseHandler(std::string { DFLAT_QUERY });
-        client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
-            HandleMessage(client, msg, databases);
-        });
-    }
-
-    auto operator=(Database&&) -> Database& = delete;
-
-    ~Database()
-    {
-        if (moved_from)
-            return;
-
-        std::fstream list_file {
-            storage_directory/DATABASE_LIST_FILE,
-            std::ios::binary | std::ios::out
-        };
-
-        // TODO: Error handling for failed disk writes
-        list_file << databases;
-    }
-
-private:
-    Database(bux::Client& cl, json&& database_data, file::path directory)
-    : storage_directory(directory), databases(std::move(database_data)), client(cl)
-    {
-        client.AddHandler(DFLAT_QUERY, [this] (auto&, const bux::Message& msg) {
-            HandleMessage(client, msg, databases);
-        });
-    }
-
-    file::path storage_directory;
-    json databases = json::object();
-    bux::Client& client;
-    bool moved_from = false;
-};
 
 }
