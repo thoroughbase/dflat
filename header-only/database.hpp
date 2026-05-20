@@ -78,6 +78,8 @@ public:
         if (moved_from)
             return;
 
+        client.EraseHandler(std::string { DFLAT_QUERY });
+
         std::fstream list_file {
             storage_directory/DATABASE_LIST_FILE,
             std::ios::binary | std::ios::out
